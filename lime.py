@@ -78,8 +78,7 @@ class LIMEExplainer:
     def __init__(self, 
                  similarity_kernel: SimilarityKernel,
                  sampler: Sampler,
-                 cls: int,
-                 model: object, 
+                 model: callable, 
                  preprocess: callable = lambda x: x):
         
         self.similarity_kernel = similarity_kernel
@@ -88,17 +87,16 @@ class LIMEExplainer:
         self.device = torch.device("cuda" if CUDA_AVAILABLE else "cpu")
         self.model = model.to(self.device)
 
-        self.cls_to_explain = cls
         self.preprocess = preprocess
 
         # freeze the model
         self.model.eval()
 
-    def get_class_probs(self, batch):
+    def get_class_probs(self, batch, cls_to_explain):
         with torch.no_grad():
             logits = self.model(batch)
             probs = torch.softmax(logits, dim=1)
-            return probs[:, self.cls_to_explain]
+            return probs[:, cls_to_explain]
     
     def build_batch(self, samples):
         batch = torch.stack([self.preprocess(Image.fromarray(sample)) for sample, _ in samples])
@@ -121,18 +119,18 @@ class LIMEExplainer:
 
         return model
 
-    def get_importance(self, instance: np.ndarray, n_pertubations: int = 500):
+    def get_importance(self, instance: np.ndarray, class_to_explain: int, n_pertubations: int = 500):
         samples = self.build_pertubations(instance, n_pertubations)
         batch = self.build_batch(samples)
-        probs = self.get_class_probs(batch).cpu().numpy()
+        probs = self.get_class_probs(batch, class_to_explain).cpu().numpy()
         sample_weights = self.build_sample_weights(instance, samples)
         model = self.train_model(samples, probs, sample_weights)
 
         return model.coef_
     
-    def explain(self, instance: np.ndarray, n_pertubations: int = 1000):
+    def explain(self, instance: np.ndarray, class_to_explain: int, n_pertubations: int = 1000):
         image = np.copy(instance)
-        importance = self.get_importance(instance, n_pertubations)
+        importance = self.get_importance(instance, class_to_explain, n_pertubations)
         
         segmentation = np.zeros_like(self.sampler.segments, dtype=np.float32)
         for i in range(len(importance)):
