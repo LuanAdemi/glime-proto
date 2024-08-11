@@ -72,7 +72,28 @@ class BinarySampler(Sampler):
             if bitmap == 0:
                 sample[self.segments == i] = self.fill_value
         return sample
+    
+class FlowSampler(Sampler):
+    def __init__(self, flow, segments: np.ndarray, alpha: int = 0.3):
+        self.flow = flow
+        super().__init__(segments, alpha=alpha)
 
+    def _latent_shuffling(self, x, beta=0.6):
+        x = torch.tensor(x, dtype=torch.float32).to(self.flow.device)
+        z = self.flow.to_latent(x.unsqueeze(0))
+        # TODO: find manipulators for the latent space
+        z[0] = z[0] + beta * torch.randn_like(z[0])
+        return self.flow.to_image(z)[0].squeeze().detach().cpu().numpy()
+
+    def generate_sample(self, instance: np.ndarray, segment_bitmap: np.ndarray) -> np.ndarray:
+        sample = np.copy(instance)
+        perturbed = self._latent_shuffling(instance.transpose(2, 0, 1)).transpose(1, 2, 0)
+        print(sample.shape, perturbed.shape)
+        
+        for i, bitmap in enumerate(segment_bitmap):
+            if bitmap == 0:
+                sample[self.segments == i] = perturbed[self.segments == i]
+        return sample
 
 class LIMEExplainer:
     def __init__(self, 
