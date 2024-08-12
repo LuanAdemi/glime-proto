@@ -53,7 +53,6 @@ class GLOW:
                 
                 optimizer.zero_grad()
                 x, y = x.to(self.device), y.to(self.device)
-                print(x.shape, y.shape)
                 
                 loss = self.model.forward_kld(x, y)
 
