@@ -8,7 +8,7 @@ from tqdm import trange
 
 class GLOW:
     def __init__(self, L, K, input_shape, num_classes, hidden_channels=256, split_mode='channel', scale=True) -> None:
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
         self.model = self._build_glow(L, K, input_shape, num_classes, hidden_channels, split_mode, scale).to(self.device)
 
     def _build_glow(self, L, K, input_shape, num_classes, hidden_channels, split_mode, scale):
