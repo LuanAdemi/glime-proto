@@ -74,15 +74,17 @@ class BinarySampler(Sampler):
         return sample
     
 class FlowSampler(Sampler):
-    def __init__(self, flow, segments: np.ndarray, alpha: int = 0.3):
+    def __init__(self, flow, manipulators: dict, segments: np.ndarray, alpha: int = 0.3):
         self.flow = flow
+        self.manipulators = manipulators
         super().__init__(segments, alpha=alpha)
 
     def _latent_shuffling(self, x, beta=0.6):
         x = torch.tensor(x, dtype=torch.float32).to(self.flow.device)
         z = self.flow.to_latent(x.unsqueeze(0))
-        # TODO: find manipulators for the latent space
-        z[0] = z[0] + beta * torch.randn_like(z[0])
+        for m, v in self.manipulators.items():
+            z[0] = z[0] + np.random.normal(0, 0.4, 1)[0] * v.to(self.flow.device)
+            
         return self.flow.to_image(z)[0].squeeze().detach().cpu().numpy()
 
     def generate_sample(self, instance: np.ndarray, segment_bitmap: np.ndarray) -> np.ndarray:

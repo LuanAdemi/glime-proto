@@ -52,9 +52,9 @@ class GLOW:
                     x, y = next(train_iter)
                 
                 optimizer.zero_grad()
-                x, y = x.to(self.device), y.to(self.device)
+                x, y = x.to(self.device), y.to(self.device).float()
                 
-                loss = self.model.forward_kld(x, y)
+                loss = self.model.forward_kld(x)
 
                 if not (torch.isnan(loss) | torch.isinf(loss)):
                     loss.backward()
