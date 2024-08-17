@@ -30,7 +30,6 @@ flow = GLOW(3, 32, (3, 96, 96), 40, 256)
 flow.model.load('models/glow/glow_celeba_3_32_256_50000.pt')
 
 
-
 """
 For each class, we want to find the mean of the latent vectors that correspond to that class.
 """

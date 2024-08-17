@@ -34,6 +34,14 @@ class Sampler(ABC):
         self.n_jobs = n_jobs
         self.alpha = alpha
 
+    @abstractmethod
+    def sample(self, instance: np.ndarray, num_samples: int) -> List[Tuple[np.ndarray, np.ndarray]]:
+        pass
+
+class DiscreteSampler(Sampler):
+    def __init__(self, segments: np.ndarray, n_jobs: int = 1, alpha: int = 0.3):
+        super().__init__(segments, n_jobs, alpha)
+
     def sample(self, instance: np.ndarray, num_samples: int) -> List[Tuple[np.ndarray, np.ndarray]]:
         def generate_sample_parallel(instance, bitmap):
             return self.generate_sample(instance, bitmap), bitmap
@@ -49,6 +57,7 @@ class Sampler(ABC):
         pass
 
 
+
 class ExponentialKernel(SimilarityKernel):
     def __init__(self, sigma: float):
         self.sigma = sigma
@@ -56,7 +65,7 @@ class ExponentialKernel(SimilarityKernel):
     def __call__(self, x1, x2) -> float:
         return np.exp(-np.linalg.norm(x1 - x2) / self.sigma)
 
-class BinarySampler(Sampler):
+class BinarySampler(DiscreteSampler):
     """
     This is a concrete class for binary sampler.
 
@@ -72,35 +81,11 @@ class BinarySampler(Sampler):
             if bitmap == 0:
                 sample[self.segments == i] = self.fill_value
         return sample
-    
-class FlowSampler(Sampler):
-    def __init__(self, flow, manipulators: dict, segments: np.ndarray, alpha: int = 0.3):
-        self.flow = flow
-        self.manipulators = manipulators
-        super().__init__(segments, alpha=alpha)
-
-    def _latent_shuffling(self, x, beta=0.6):
-        x = torch.tensor(x, dtype=torch.float32).to(self.flow.device)
-        z = self.flow.to_latent(x.unsqueeze(0))
-        for m, v in self.manipulators.items():
-            z[0] = z[0] + np.random.normal(0, 0.4, 1)[0] * v.to(self.flow.device)
-            
-        return self.flow.to_image(z)[0].squeeze().detach().cpu().numpy()
-
-    def generate_sample(self, instance: np.ndarray, segment_bitmap: np.ndarray) -> np.ndarray:
-        sample = np.copy(instance)
-        perturbed = self._latent_shuffling(instance.transpose(2, 0, 1)).transpose(1, 2, 0)
-        print(sample.shape, perturbed.shape)
-        
-        for i, bitmap in enumerate(segment_bitmap):
-            if bitmap == 0:
-                sample[self.segments == i] = perturbed[self.segments == i]
-        return sample
 
 class LIMEExplainer:
     def __init__(self, 
                  similarity_kernel: SimilarityKernel,
-                 sampler: Sampler,
+                 sampler: DiscreteSampler,
                  model: callable, 
                  preprocess: callable = lambda x: x):
         
